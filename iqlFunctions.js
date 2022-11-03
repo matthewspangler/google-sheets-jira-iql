@@ -1,4 +1,5 @@
-// Fill out the following 3 variables. Base_url should be the REST API url.
+// Fill out the following 3 variables. Base_url should be the REST API url for Insight. Something like this:
+//      https://api.atlassian.com/jsm/insight/workspace/{workspace id}/v1/
 
 const jira_user_email = "";
 const jira_api_key = "";
@@ -143,7 +144,7 @@ function insightObjectsIql(iql_query) {
  * @param string object_schema_id [The object schema ID.]
  * @return a list containing the IQL search responses.
  */
-function getObjectTypeIdFromName(name, object_schema_id="") {
+function getObjectTypeIdFromName(name, object_schema_id) {
   var data = insightRequest("objectschema/" + object_schema_id + "/objecttypes");
   for (const object_type of data) {
     if ("name" in object_type) {
@@ -161,8 +162,8 @@ function getObjectTypeIdFromName(name, object_schema_id="") {
  * @param string name [The name of the object type's attribute.]
  * @param string object_name [The object type name.]
  */
-function getObjectTypeAttributeId(name, object_name="") {
-  var object_type_id = getObjectTypeIdFromName(object_name);
+function getObjectTypeAttributeId(name, object_name, object_schema_id) {
+  var object_type_id = getObjectTypeIdFromName(object_name, object_schema_id);
   var data = insightRequest("objecttype/" + object_type_id + "/attributes");
   for (const item in data) {
     if (name == data[item]["name"]) {
@@ -179,8 +180,8 @@ function getObjectTypeAttributeId(name, object_name="") {
  * @param string attribute [The fields to return from the IQL search.]
  * @return the key's corresponding value as a string.
  */
-function getLazyIQL(iql_search, attribute="") {
-  var objectTypeAttributeId = getObjectTypeAttributeId(attribute);
+function getLazyIQL(iql_search, attribute, object_name, object_schema_id) {
+  var objectTypeAttributeId = getObjectTypeAttributeId(attribute, object_name, object_schema_id);
   Logger.log("Object Type Attribute ID: " + objectTypeAttributeId);
   var data = insightObjectsIql(iql_search);
   var object_entries = data['objectEntries'];
@@ -203,25 +204,12 @@ function getLazyIQL(iql_search, attribute="") {
  * Frontend functions for use in Google Sheets:
  */
 
-/**
- * LAZYIQL()
- * Returns only the first value of getLazyIQL()
- * @param string iql_search [The IQL search query.]
- * @param string attribute [The fields to return from the IQL search.]
- * @return the key's corresponding value as a string.
- */
-function _LAZYIQL(iql_search, attribute="") {
+function _LAZYIQL(iql_search, attribute, object_name, object_schema_id) {
   return getLazyIQL(iql_search, attribute)[0];
 };
 
-/**
- * LAZYIQL()
- * Same as LAZYIQL() but returns all entries, not just the first.
- * @param string iql_search [The IQL search query.]
- * @param string attribute [The fields to return from the IQL search.]
- * @return the key's corresponding value as a string.
- */
-function _LAZYIQL_LIST(iql_search, attribute="") {
+
+function _LAZYIQL_LIST(iql_search, attribute, object_name, object_schema_id) {
   return getLazyIQL(iql_search, attribute).join(";");
 };
 
@@ -231,12 +219,24 @@ function _LAZYIQL_LIST(iql_search, attribute="") {
 var MEMOIZED_IQL = memoize(_LAZYIQL);
 var MEMOIZED_IQL_LIST = memoize(_LAZYIQL_LIST);
 
-// Can't call the 'var' memoized functions in excel that I just defined? Defining here:
-function LAZYIQL(iql_search, attribute="") {
-  return MEMOIZED_IQL(iql_search, attribute);
+/**
+ * LAZYIQL()
+ * Returns only the first value of getLazyIQL()
+ * @param string iql_search [The IQL search query.]
+ * @param string attribute [The fields to return from the IQL search.]
+ * @return the key's corresponding value as a string.
+ */
+function LAZYIQL(iql_search, attribute, object_name, object_schema_id) {
+  return MEMOIZED_IQL(iql_search, attribute, object_name, object_schema_id);
 }
 
-// Can't call the 'var' memoized functions in excel that I just defined? Defining here:
-function LAZYIQL_LIST(iql_search, attribute="") {
-  return MEMOIZED_IQL_LIST(iql_search, attribute);
+/**
+ * LAZYIQL()
+ * Same as LAZYIQL() but returns all entries, not just the first.
+ * @param string iql_search [The IQL search query.]
+ * @param string attribute [The fields to return from the IQL search.]
+ * @return the key's corresponding value as a string.
+ */
+function LAZYIQL_LIST(iql_search, attribute, object_name, object_schema_id) {
+  return MEMOIZED_IQL_LIST(iql_search, attribute, object_name, object_schema_id);
 }
